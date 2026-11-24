@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#24272a">
+  <meta name="description" content="A simple, responsive audio frequency generator.">
+  <title>Frequency Generator</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #24272a;
+      --panel: #2d3034;
+      --panel-2: #34383d;
+      --yellow: #f5c843;
+      --yellow-2: #f8d75e;
+      --white: #f8f8f8;
+      --muted: #a8aaad;
+      --line: #4b4e52;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--white);
+      font-family: Inter, ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      touch-action: manipulation;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .app { min-height: 100svh; display: flex; flex-direction: column; padding: var(--safe-top) 0 var(--safe-bottom); }
+    .topbar {
+      min-height: 112px; padding: 26px clamp(22px, 5vw, 54px);
+      display: flex; align-items: center; gap: clamp(18px, 3vw, 34px);
+      border-bottom: 1px solid rgba(255,255,255,.035);
+    }
+    .icon-button {
+      border: 0; background: transparent; width: 54px; height: 54px; padding: 12px;
+      display: grid; place-items: center; cursor: pointer; border-radius: 50%;
+      transition: background .18s, transform .18s; flex: 0 0 auto;
+    }
+    .icon-button:hover, .icon-button:focus-visible { background: rgba(255,255,255,.09); outline: none; }
+    .icon-button:active { transform: scale(.94); }
+    .icon-button svg { width: 100%; height: 100%; }
+    .brand { font-size: clamp(34px, 7vw, 66px); font-weight: 300; line-height: 1; letter-spacing: -.055em; white-space: nowrap; }
+    .brand span { color: var(--yellow); }
+    .main {
+      width: min(100%, 1120px); flex: 1; margin: 0 auto; padding: 22px clamp(24px, 6vw, 72px) 28px;
+      display: flex; flex-direction: column; justify-content: flex-end;
+    }
+    .control-row { display: flex; justify-content: space-between; align-items: flex-end; min-height: 150px; margin-bottom: 18px; }
+    .volume-block { width: 150px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+    .side-tools { display: flex; flex-direction: column; gap: 20px; align-items: center; }
+    .round-tool {
+      width: 74px; height: 74px; border: none; border-radius: 50%; background: var(--panel-2);
+      display: grid; place-items: center; padding: 21px; cursor: pointer; transition: .18s;
+    }
+    .round-tool:hover, .round-tool[aria-expanded="true"] { background: #41454a; color: var(--yellow); }
+    .round-tool svg { width: 100%; height: 100%; }
+    .volume-value { font-size: 25px; font-weight: 300; letter-spacing: .02em; }
+    .frequency-display { text-align: center; margin: 0 auto 40px; cursor: text; }
+    .frequency-number {
+      display: inline-flex; align-items: baseline; justify-content: center; min-width: 3ch;
+      font-size: clamp(92px, 17vw, 150px); font-weight: 300; letter-spacing: -.065em; line-height: 1.05;
+      outline: none; border-radius: 12px; caret-color: var(--yellow);
+    }
+    .frequency-number:focus { box-shadow: 0 3px 0 var(--yellow); }
+    .unit { color: var(--yellow); font-size: clamp(30px, 5vw, 50px); font-weight: 300; letter-spacing: .04em; margin-top: 22px; }
+    .slider-area { margin: 0 0 54px; }
+    .range-wrap { position: relative; height: 28px; display: flex; align-items: center; }
+    input[type="range"] {
+      width: 100%; appearance: none; -webkit-appearance: none; height: 9px; border-radius: 99px;
+      background: linear-gradient(to right, var(--yellow) 0%, var(--yellow) var(--progress, 40%), var(--line) var(--progress, 40%), var(--line) 100%);
+      outline: none; cursor: pointer; margin: 0;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none; -webkit-appearance: none; height: 50px; width: 50px; background: #fff;
+      border-radius: 50%; box-shadow: 0 5px 18px rgba(0,0,0,.16); border: 0;
+    }
+    input[type="range"]::-moz-range-thumb { height: 50px; width: 50px; background: #fff; border-radius: 50%; border: 0; }
+    .range-labels { display: flex; justify-content: space-between; margin-top: 20px; font-size: clamp(18px, 3vw, 27px); font-weight: 300; }
+    .transport { display: grid; grid-template-columns: 1fr 1.2fr 1fr; align-items: center; justify-items: center; max-width: 820px; width: 100%; margin: 0 auto 18px; }
+    .step-button {
+      border: 0; background: var(--yellow); color: #1e2022; border-radius: 50%; width: 56px; height: 56px;
+      display: grid; place-items: center; padding: 16px; cursor: pointer; transition: .15s;
+    }
+    .step-button:hover { background: var(--yellow-2); transform: scale(1.05); }
+    .step-button svg { width: 100%; height: 100%; }
+    .play-button {
+      height: 154px; width: 154px; border: 0; border-radius: 50%; background: var(--yellow); color: white;
+      display: grid; place-items: center; padding: 53px; cursor: pointer; box-shadow: 0 8px 30px rgba(0,0,0,.12); transition: transform .18s, background .18s;
+    }
+    .play-button:hover { transform: scale(1.035); background: var(--yellow-2); }
+    .play-button:active { transform: scale(.97); }
+    .play-button svg { width: 100%; height: 100%; }
+    .status { min-height: 24px; text-align: center; color: var(--muted); font-size: 13px; letter-spacing: .025em; margin-top: 8px; }
+    .step-setting { text-align: center; color: var(--muted); font-size: 13px; margin-top: 3px; }
+    .popover, .drawer-backdrop { position: fixed; inset: 0; z-index: 5; }
+    .popover { display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(0,0,0,.4); }
+    .popover.open { display: flex; }
+    .popover-card {
+      width: min(460px, 100%); background: #303338; border: 1px solid rgba(255,255,255,.08);
+      border-radius: 22px; padding: 24px; box-shadow: 0 24px 80px rgba(0,0,0,.4);
+    }
+    .popover-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .popover-head h2 { margin: 0; font-size: 21px; font-weight: 500; }
+    .close-button { width: 38px; height: 38px; border: 0; background: #41454a; border-radius: 50%; cursor: pointer; font-size: 22px; }
+    .choice-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+    .choice {
+      border: 1px solid var(--line); color: var(--white); background: transparent; border-radius: 12px;
+      padding: 14px 12px; cursor: pointer; text-align: left; transition: .16s;
+    }
+    .choice:hover, .choice.active { border-color: var(--yellow); background: rgba(245,200,67,.11); }
+    .choice strong { display: block; font-size: 15px; font-weight: 500; }
+    .choice small { color: var(--muted); display: block; margin-top: 4px; }
+    .drawer-backdrop { display:none; background:rgba(0,0,0,.5); }
+    .drawer-backdrop.open { display:block; }
+    .drawer { width:min(340px, 88vw); height:100%; background:#2c2f33; padding:28px; box-shadow:20px 0 50px rgba(0,0,0,.2); transform:translateX(-105%); transition:transform .22s; }
+    .drawer-backdrop.open .drawer { transform:translateX(0); }
+    .drawer h2 { color:var(--yellow); font-size:21px; font-weight:500; margin:4px 0 22px; }
+    .drawer-label { text-transform:uppercase; font-size:11px; color:var(--muted); letter-spacing:.12em; margin:22px 0 10px; }
+    .drawer .choice-grid { grid-template-columns:1fr; }
+    .drawer .choice { text-align:left; }
+    .fine-print { color:#888b8f; text-align:center; font-size:11px; margin-top:18px; }
+    @media (max-width: 600px) {
+      .topbar { min-height: 92px; padding: 18px 20px; gap: 13px; }
+      .icon-button { width: 46px; height: 46px; padding: 10px; }
+      .brand { font-size: clamp(32px, 8.4vw, 49px); letter-spacing: -.06em; }
+      .main { padding: 15px 26px calc(22px + var(--safe-bottom)); justify-content: flex-end; }
+      .control-row { min-height: 120px; margin-bottom: 10px; }
+      .round-tool { width: 64px; height: 64px; padding: 18px; }
+      .volume-block { width: 110px; }
+      .volume-value { font-size: 22px; }
+      .frequency-display { margin-bottom: 35px; }
+      .frequency-number { font-size: clamp(82px, 23vw, 120px); }
+      .unit { font-size: 34px; margin-top: 18px; }
+      .slider-area { margin-bottom: 45px; }
+      input[type="range"]::-webkit-slider-thumb { width: 44px; height: 44px; }
+      input[type="range"]::-moz-range-thumb { width: 44px; height: 44px; }
+      .range-labels { margin-top: 17px; }
+      .play-button { width: 126px; height: 126px; padding: 44px; }
+      .transport { margin-bottom: 6px; }
+      .step-button { width: 50px; height: 50px; padding: 15px; }
+    }
+    @media (max-height: 740px) and (min-width: 601px) {
+      .topbar { min-height: 86px; padding-top: 14px; padding-bottom: 14px; }
+      .main { padding-top: 10px; }
+      .control-row { min-height: 95px; }
+      .round-tool { width: 62px; height: 62px; padding: 18px; }
+      .frequency-number { font-size: 105px; }
+      .frequency-display { margin-bottom: 22px; }
+      .slider-area { margin-bottom: 32px; }
+      .play-button { width: 124px; height: 124px; padding: 43px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior:auto !important; transition:none !important; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <button class="icon-button" id="menuButton" aria-label="Open menu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <div class="brand"><span>Frequency</span>Generator</div>
+    </header>
+
+    <main class="main">
+      <div class="control-row">
+        <section class="volume-block" aria-label="Output volume">
+          <button class="round-tool" id="volumeMute" aria-label="Mute output" title="Mute output">
+            <svg id="volumeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+          </button>
+          <div class="volume-value" id="volumeValue">100%</div>
+        </section>
+        <div class="side-tools">
+          <button class="round-tool" id="noteButton" aria-label="Choose musical note" title="Choose a note" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v13.2a3.8 3.8 0 1 1-2-3.35V6l10-2v10.2a3.8 3.8 0 1 1-2-3.35V2.4L12 3Z"/></svg>
+          </button>
+          <button class="round-tool" id="waveButton" aria-label="Choose waveform" title="Choose waveform" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 13c2.5-9 5-9 7.5 0s5 9 7.5 0 5-9 7-2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="frequency-display" id="frequencyDisplay" aria-label="Frequency in hertz">
+        <div class="frequency-number" id="frequencyNumber" role="spinbutton" tabindex="0" contenteditable="true" inputmode="decimal" aria-valuemin="1" aria-valuemax="22000" aria-valuenow="440" aria-label="Frequency value">440</div>
+        <div class="unit">Hz</div>
+      </div>
+
+      <section class="slider-area" aria-label="Frequency control">
+        <div class="range-wrap">
+          <input id="frequencySlider" type="range" min="0" max="1000" step="1" value="440" aria-label="Adjust frequency">
+        </div>
+        <div class="range-labels"><span>1 Hz</span><span>22,000 Hz</span></div>
+      </section>
+
+      <div class="transport">
+        <div><button class="step-button" id="minusButton" aria-label="Decrease frequency by one hertz">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M5 12h14"/></svg>
+        </button></div>
+        <button class="play-button" id="playButton" aria-label="Start tone">
+          <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.8c0-1.3 1.4-2.1 2.5-1.4l11 6.7a2.2 2.2 0 0 1 0 3.8l-11 6.7A1.7 1.7 0 0 1 7 19.2V4.8Z"/></svg>
+        </button>
+        <div><button class="step-button" id="plusButton" aria-label="Increase frequency by one hertz">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button></div>
+      </div>
+      <div class="step-setting">Step: <span id="stepValue">1</span> Hz · <button id="stepButton" style="border:0;background:none;color:var(--yellow);padding:3px 5px;cursor:pointer">Change</button></div>
+      <div class="status" id="status" aria-live="polite">Ready</div>
+    </main>
+  </div>
+
+  <div class="popover" id="wavePopover" role="dialog" aria-modal="true" aria-labelledby="waveTitle">
+    <div class="popover-card">
+      <div class="popover-head"><h2 id="waveTitle">Waveform</h2><button class="close-button" data-close aria-label="Close">×</button></div>
+      <div class="choice-grid" id="waveChoices">
+        <button class="choice active" data-wave="sine"><strong>Sine</strong><small>Smooth, pure tone</small></button>
+        <button class="choice" data-wave="triangle"><strong>Triangle</strong><small>Soft, rounded harmonics</small></button>
+        <button class="choice" data-wave="square"><strong>Square</strong><small>Bright, buzzy tone</small></button>
+        <button class="choice" data-wave="sawtooth"><strong>Sawtooth</strong><small>Full, bright tone</small></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="popover" id="notePopover" role="dialog" aria-modal="true" aria-labelledby="noteTitle">
+    <div class="popover-card">
+      <div class="popover-head"><h2 id="noteTitle">Musical notes</h2><button class="close-button" data-close aria-label="Close">×</button></div>
+      <div class="choice-grid" id="noteChoices"></div>
+    </div>
+  </div>
+
+  <div class="drawer-backdrop" id="drawerBackdrop">
+    <aside class="drawer" aria-label="Frequency presets and settings">
+      <div class="popover-head"><h2>Frequency Generator</h2><button class="close-button" id="drawerClose" aria-label="Close menu">×</button></div>
+      <div class="drawer-label">Common tones</div>
+      <div class="choice-grid" id="presetChoices">
+        <button class="choice" data-hz="110"><strong>110 Hz</strong><small>A2 · low reference</small></button>
+        <button class="choice" data-hz="220"><strong>220 Hz</strong><small>A3</small></button>
+        <button class="choice" data-hz="440"><strong>440 Hz</strong><small>A4 · tuning reference</small></button>
+        <button class="choice" data-hz="1000"><strong>1,000 Hz</strong><small>Audio test tone</small></button>
+        <button class="choice" data-hz="10000"><strong>10,000 Hz</strong><small>High tone</small></button>
+      </div>
+      <div class="drawer-label">Fine adjustment</div>
+      <button class="choice" id="stepMenuChoice"><strong>Step size: 1 Hz</strong><small>Tap to change increment</small></button>
+      <p class="fine-print">Keep volume low when testing tones. High or sustained tones can be uncomfortable or harmful.</p>
+    </aside>
+  </div>
+
+  <script>
+    (() => {
+      const MIN = 1, MAX = 22000;
+      const $ = (id) => document.getElementById(id);
+      const slider = $("frequencySlider"), readout = $("frequencyNumber"), status = $("status");
+      const playButton = $("playButton"), playIcon = $("playIcon");
+      let frequency = 440, volume = 1, lastVolume = 1, step = 1, wave = "sine";
+      let audioContext, oscillator, gain;
+
+      const toSlider = hz => Math.round(Math.log(hz / MIN) / Math.log(MAX / MIN) * 1000);
+      const fromSlider = value => MIN * Math.pow(MAX / MIN, Number(value) / 1000);
+      const pretty = hz => Math.round(hz).toLocaleString("en-US");
+      const setStatus = text => { status.textContent = text; };
+      const paintSlider = () => {
+        const pct = Number(slider.value) / 10;
+        slider.style.setProperty("--progress", pct + "%");
+      };
+      function showFrequency(value, updateAudio = true) {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) return;
+        frequency = Math.min(MAX, Math.max(MIN, parsed));
+        readout.textContent = String(Number(frequency.toFixed(frequency < 100 ? 2 : 1)));
+        readout.setAttribute("aria-valuenow", String(frequency));
+        slider.value = String(toSlider(frequency));
+        paintSlider();
+        if (oscillator && updateAudio) oscillator.frequency.setTargetAtTime(frequency, audioContext.currentTime, .012);
+      }
+      async function ensureAudio() {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) throw new Error("Audio playback is not supported in this browser.");
+        if (!audioContext) {
+          audioContext = new AudioContextClass();
+          gain = audioContext.createGain();
+          gain.gain.value = volume;
+          gain.connect(audioContext.destination);
+        }
+        if (audioContext.state === "suspended") await audioContext.resume();
+      }
+      async function startTone() {
+        try {
+          await ensureAudio();
+          if (oscillator) return;
+          oscillator = audioContext.createOscillator();
+          oscillator.type = wave;
+          oscillator.frequency.value = frequency;
+          oscillator.connect(gain);
+          oscillator.start();
+          playButton.setAttribute("aria-label", "Stop tone");
+          playIcon.innerHTML = '<rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/>';
+          setStatus("Playing · " + pretty(frequency) + " Hz · " + wave);
+        } catch (error) {
+          setStatus(error.message || "Could not start audio.");
+        }
+      }
+      function stopTone() {
+        if (oscillator) {
+          try { oscillator.stop(); } catch (_) {}
+          oscillator.disconnect();
+          oscillator = null;
+        }
+        playButton.setAttribute("aria-label", "Start tone");
+        playIcon.innerHTML = '<path d="M7 4.8c0-1.3 1.4-2.1 2.5-1.4l11 6.7a2.2 2.2 0 0 1 0 3.8l-11 6.7A1.7 1.7 0 0 1 7 19.2V4.8Z"/>';
+        setStatus("Ready");
+      }
+      function setVolume(value) {
+        volume = Math.max(0, Math.min(1, value));
+        if (volume > 0) lastVolume = volume;
+        $("volumeValue").textContent = Math.round(volume * 100) + "%";
+        $("volumeIcon").style.opacity = volume === 0 ? ".45" : "1";
+        if (gain && audioContext) gain.gain.setTargetAtTime(volume, audioContext.currentTime, .02);
+      }
+      const wavePopover = $("wavePopover"), notePopover = $("notePopover");
+      function closePopovers() {
+        wavePopover.classList.remove("open"); notePopover.classList.remove("open");
+        $("waveButton").setAttribute("aria-expanded", "false");
+        $("noteButton").setAttribute("aria-expanded", "false");
+      }
+      function openPopover(popover, button) {
+        closePopovers(); popover.classList.add("open"); button.setAttribute("aria-expanded", "true");
+        popover.querySelector("[data-close]").focus();
+      }
+      function setWave(value) {
+        wave = value;
+        document.querySelectorAll("#waveChoices .choice").forEach(button => button.classList.toggle("active", button.dataset.wave === value));
+        if (oscillator) oscillator.type = value;
+        closePopovers();
+        if (oscillator) setStatus("Playing · " + pretty(frequency) + " Hz · " + wave);
+      }
+      $("waveButton").addEventListener("click", () => openPopover(wavePopover, $("waveButton")));
+      $("noteButton").addEventListener("click", () => openPopover(notePopover, $("noteButton")));
+      document.querySelectorAll("[data-close]").forEach(button => button.addEventListener("click", closePopovers));
+      document.querySelectorAll("#waveChoices .choice").forEach(button => button.addEventListener("click", () => setWave(button.dataset.wave)));
+      [wavePopover, notePopover].forEach(pop => pop.addEventListener("click", event => { if (event.target === pop) closePopovers(); }));
+      $("playButton").addEventListener("click", () => oscillator ? stopTone() : startTone());
+      slider.addEventListener("input", () => showFrequency(fromSlider(slider.value)));
+      readout.addEventListener("keydown", event => {
+        if (event.key === "Enter") { event.preventDefault(); readout.blur(); }
+        if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+          event.preventDefault(); showFrequency(frequency + (event.key === "ArrowUp" ? step : -step));
+        }
+      });
+      readout.addEventListener("blur", () => {
+        const parsed = Number(readout.textContent.replace(/,/g, "").replace(/\s*hz$/i, ""));
+        if (Number.isFinite(parsed)) showFrequency(parsed);
+        else readout.textContent = pretty(frequency);
+      });
+      readout.addEventListener("input", () => {
+        const clean = readout.textContent.replace(/[^0-9.]/g, "");
+        if (clean !== readout.textContent) readout.textContent = clean;
+      });
+      function adjust(delta) { showFrequency(frequency + delta); }
+      $("minusButton").addEventListener("click", () => adjust(-step));
+      $("plusButton").addEventListener("click", () => adjust(step));
+      $("stepButton").addEventListener("click", changeStep);
+      $("stepMenuChoice").addEventListener("click", changeStep);
+      function changeStep() {
+        const choices = [1, 5, 10, 50, 100, 1000];
+        const next = choices[(choices.indexOf(step) + 1) % choices.length];
+        step = next;
+        $("stepValue").textContent = String(step);
+        $("stepMenuChoice").innerHTML = "<strong>Step size: " + step.toLocaleString("en-US") + " Hz</strong><small>Tap to change increment</small>";
+      }
+      $("volumeMute").addEventListener("click", () => setVolume(volume > 0 ? 0 : lastVolume));
+      const notes = [
+        ["C4",261.63],["D4",293.66],["E4",329.63],["F4",349.23],["G4",392],
+        ["A4",440],["B4",493.88],["C5",523.25],["A3",220],["A5",880]
+      ];
+      notes.forEach(([label, hz]) => {
+        const button = document.createElement("button");
+        button.className = "choice"; button.innerHTML = "<strong>" + label + "</strong><small>" + hz + " Hz</small>";
+        button.addEventListener("click", () => { showFrequency(hz); closePopovers(); });
+        $("noteChoices").append(button);
+      });
+      $("menuButton").addEventListener("click", () => {
+        $("drawerBackdrop").classList.add("open"); $("menuButton").setAttribute("aria-expanded", "true");
+      });
+      function closeDrawer() { $("drawerBackdrop").classList.remove("open"); $("menuButton").setAttribute("aria-expanded", "false"); }
+      $("drawerClose").addEventListener("click", closeDrawer);
+      $("drawerBackdrop").addEventListener("click", event => { if (event.target === $("drawerBackdrop")) closeDrawer(); });
+      document.querySelectorAll("[data-hz]").forEach(button => button.addEventListener("click", () => { showFrequency(Number(button.dataset.hz)); closeDrawer(); }));
+      $("stepMenuChoice").addEventListener("click", () => {
+        changeStep();
+      });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape") { closePopovers(); closeDrawer(); }
+      });
+      paintSlider();
+      showFrequency(440, false);
+    })();
+  </script>
+</body>
+</html>
