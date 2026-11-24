@@ -289,18 +289,44 @@
         }
         if (audioContext.state === "suspended") await audioContext.resume();
       }
-      async function startTone() {
+      function startTone() {
         try {
-          await ensureAudio();
           if (oscillator) return;
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) throw new Error("Audio playback is not supported in this browser.");
+          if (!audioContext) {
+            audioContext = new AudioContextClass();
+            gain = audioContext.createGain();
+            gain.gain.value = 0;
+            gain.connect(audioContext.destination);
+          }
+          // Resume synchronously from the Play tap, then start the oscillator in
+          // the same user gesture so mobile browsers accept the audio.
+          if (audioContext.state === "suspended") {
+            audioContext.resume().catch(() => {
+              setStatus("Audio is blocked. Tap Play again or check your device’s audio output.");
+            });
+          }
           oscillator = audioContext.createOscillator();
           oscillator.type = wave;
           oscillator.frequency.value = frequency;
           oscillator.connect(gain);
-          oscillator.start();
+          const now = audioContext.currentTime;
+          gain.gain.cancelScheduledValues(now);
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(volume, now + .04);
+          oscillator.start(now);
           playButton.setAttribute("aria-label", "Stop tone");
           playIcon.innerHTML = '<rect x="5" y="4" width="5" height="16" rx="1"/><rect x="14" y="4" width="5" height="16" rx="1"/>';
-          setStatus("Playing · " + pretty(frequency) + " Hz · " + wave);
+          setStatus(audioContext.state === "running"
+            ? "Playing · " + pretty(frequency) + " Hz · " + wave
+            : "Starting audio…");
+          audioContext.onstatechange = () => {
+            if (!oscillator) return;
+            setStatus(audioContext.state === "running"
+              ? "Playing · " + pretty(frequency) + " Hz · " + wave
+              : "Audio is paused. Check your device’s audio output, then tap Play again.");
+          };
         } catch (error) {
           setStatus(error.message || "Could not start audio.");
         }
