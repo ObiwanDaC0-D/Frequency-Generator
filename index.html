@@ -391,9 +391,6 @@
       $("drawerClose").addEventListener("click", closeDrawer);
       $("drawerBackdrop").addEventListener("click", event => { if (event.target === $("drawerBackdrop")) closeDrawer(); });
       document.querySelectorAll("[data-hz]").forEach(button => button.addEventListener("click", () => { showFrequency(Number(button.dataset.hz)); closeDrawer(); }));
-      $("stepMenuChoice").addEventListener("click", () => {
-        changeStep();
-      });
       document.addEventListener("keydown", event => {
         if (event.key === "Escape") { closePopovers(); closeDrawer(); }
       });
